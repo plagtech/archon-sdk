@@ -44,7 +44,10 @@
     "intents",
     "session-keys"
   ],
-  "repository": "https://github.com/plagtech/archon-sdk",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/plagtech/archon-sdk.git"
+  },
   "author": "Plagtech LLC",
   "license": "MIT",
   "dependencies": {
