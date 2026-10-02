@@ -1,0 +1,25 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    // No "DOM": the SDK must run in plain Node.js. Any window/document use fails to compile.
+    "lib": ["ES2022"],
+    "types": ["node"],
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "resolveJsonModule": true,
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "noImplicitOverride": true,
+    "noFallthroughCasesInSwitch": true,
+    "exactOptionalPropertyTypes": false,
+    "isolatedModules": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "declaration": true,
+    "noEmit": true,
+    // Examples import the package by name, as users would
+    "paths": { "@plagtech/archon-sdk": ["./src/index.ts"] }
+  },
+  "include": ["src", "test", "examples", "tsup.config.ts", "vitest.config.ts"]
+}

@@ -1,0 +1,5 @@
+dist/
+node_modules/
+src/contracts/abis/
+package-lock.json
+CLAUDE.md
