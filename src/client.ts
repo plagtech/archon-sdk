@@ -173,7 +173,7 @@ export class ArchonClient {
     return this.solver.health();
   }
 
-  /** Not yet served by the solver (throws SolverError 404 until it is) */
+  /** Solver counters since its last restart: intents, mempool depth, match rate, batches, gas */
   stats(): Promise<SolverStats> {
     return this.solver.stats();
   }

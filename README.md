@@ -133,7 +133,7 @@ The SDK never stores keys. Signers are passed in and used for the duration of th
 | `getPairs()` / `getQuote(params)` | Market data from the solver                                                   |
 | `getPoolState('USDC/DAI')`        | Reserves, fee and spot price read from chain                                  |
 | `subscribe(filter?)`              | `EventStream` over WebSocket                                                  |
-| `health()` / `stats()`            | Solver status (`/stats` is not served by the solver yet)                      |
+| `health()` / `stats()`            | Solver status; `stats()` returns intent, mempool, match-rate and gas counters |
 
 ### `Vault`
 

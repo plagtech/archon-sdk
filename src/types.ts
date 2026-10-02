@@ -292,16 +292,64 @@ export interface SolverHealth {
 }
 
 /**
- * GET /stats. Specified in the solver's design doc (batches, volume by pair, match rate,
- * settlement time) but not yet served by the solver; fields are optional until it is.
+ * GET /stats. In-memory counters since the solver process started (they reset on restart).
+ * Amounts are base-unit decimal strings; rates are fractions in [0, 1].
+ * Batch, gas and volume figures are recorded from the solver's own settlement receipts, so they
+ * can trail intent statuses (which come from chain logs) by a few seconds.
+ * Mirrors SolverStats in archon-solver/src/stats.ts — keep the two in sync.
  */
 export interface SolverStats {
-  totalBatches?: number;
-  volumeByPair?: Record<string, string>;
-  /** Fraction of volume matched peer-to-peer, 0–1 */
-  matchRate?: number;
-  averageSettlementMs?: number;
-  [key: string]: unknown;
+  solver: { address: string; chainId: number };
+  uptime: {
+    /** ISO timestamp of process start */
+    startedAt: string;
+    /** ISO timestamp of this response */
+    now: string;
+    seconds: number;
+  };
+  intents: {
+    /** Accepted by POST /intent (rejected submissions are not counted) */
+    received: number;
+    settled: number;
+    /** Settled intents filled at least partly peer-to-peer (coincidence of wants) */
+    matched: number;
+    /** Settled intents filled at least partly through the pool (one split between both counts in both) */
+    routedThroughPool: number;
+    refunded: number;
+    expired: number;
+    failed: number;
+  };
+  mempool: {
+    /** Waiting to be batched */
+    pending: number;
+    /** In a batch being submitted or awaiting confirmation */
+    inFlight: number;
+    /** Every configured pair, by pair name */
+    byPair: Record<string, { pending: number; inFlight: number }>;
+  };
+  volume: {
+    /** CoW volume / settled volume across all pairs; null until something settles, or if pairs use different quote tokens */
+    matchRate: number | null;
+    /** Volumes in the pair's quote token (its first symbol, e.g. USDC for "USDC/DAI") at each batch's clearing price */
+    byPair: Record<
+      string,
+      { quoteToken: string; settled: string; matched: string; routedThroughPool: string; matchRate: number | null }
+    >;
+  };
+  settlement: {
+    /** settleBatch transactions broadcast by this solver */
+    batchesSubmitted: number;
+    batchesSettled: number;
+    /** Mined but reverted (no intent filled; gas still spent) */
+    batchesReverted: number;
+    gasUsed: string;
+    /** gasUsed × effective gas price, wei */
+    gasSpentWei: string;
+    /** ISO timestamp of the last confirmed batch */
+    lastSettlement: string | null;
+    /** Mean time from submission to settlement */
+    averageSettlementMs: number | null;
+  };
 }
 
 // ─── Events ─────────────────────────────────────────────────────────────────

@@ -5,6 +5,7 @@ import { BASE_POOLS, DEFAULT_ADDRESSES } from '../src/contracts/addresses.js';
 import { AgentVaultAbi, ArchonRouterAbi, StablePoolAbi, VaultFactoryAbi } from '../src/contracts/index.js';
 import { ArchonError } from '../src/errors.js';
 import { resolveTokenAddress } from '../src/tokens/registry.js';
+import type { SolverStats } from '../src/types.js';
 import { FakeChain, fakeFetch } from './helpers/fakes.js';
 
 const A = DEFAULT_ADDRESSES[8453]!;
@@ -66,14 +67,47 @@ describe('market data', () => {
     expect(requests).toHaveLength(0);
   });
 
-  it('getPairs / health pass through; stats surfaces the 404 until the solver serves it', async () => {
+  it('getPairs / health / stats pass through', async () => {
+    // Typed as SolverStats so a drift between this fixture and the type fails typecheck
+    const stats: SolverStats = {
+      solver: { address: OPERATOR, chainId: 8453 },
+      uptime: { startedAt: '2026-10-01T12:00:00.000Z', now: '2026-10-01T12:01:00.000Z', seconds: 60 },
+      intents: { received: 3, settled: 2, matched: 2, routedThroughPool: 1, refunded: 0, expired: 1, failed: 0 },
+      mempool: { pending: 0, inFlight: 0, byPair: { 'USDC/DAI': { pending: 0, inFlight: 0 } } },
+      volume: {
+        matchRate: 0.666666,
+        byPair: {
+          'USDC/DAI': {
+            quoteToken: 'USDC',
+            settled: '150000000',
+            matched: '100000000',
+            routedThroughPool: '50000000',
+            matchRate: 0.666666,
+          },
+        },
+      },
+      settlement: {
+        batchesSubmitted: 1,
+        batchesSettled: 1,
+        batchesReverted: 0,
+        gasUsed: '200000',
+        gasSpentWei: '600000',
+        lastSettlement: '2026-10-01T12:00:30.000Z',
+        averageSettlementMs: 4000,
+      },
+    };
     const { archon } = client(new FakeChain(), [
       { path: '/pairs', body: { pairs: [{ name: 'USDC/DAI' }] } },
       { path: '/health', body: { status: 'ok', chain: 8453 } },
+      { path: '/stats', body: stats },
     ]);
     expect((await archon.getPairs())[0]!.name).toBe('USDC/DAI');
     expect((await archon.health()).status).toBe('ok');
-    await expect(archon.stats()).rejects.toMatchObject({ status: 404 });
+    expect(await archon.stats()).toEqual(stats);
+  });
+
+  it('stats surfaces a SolverError from solvers that predate /stats', async () => {
+    await expect(client().archon.stats()).rejects.toMatchObject({ status: 404 });
   });
 
   it('getPoolState reads the pool from chain', async () => {

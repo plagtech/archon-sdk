@@ -330,6 +330,35 @@ describe.skipIf(!RPC || !ANVIL)('integration (Base fork)', () => {
       expect(settledEvents.map((e) => e.intentId).sort()).toEqual(intents.map((i) => i.id).sort());
     }, 120_000);
 
+    it('stats() reflects the settled swaps', async () => {
+      // Intent statuses come from the solver's log listener; batch, gas and volume figures from the
+      // submitter's own receipt poll, which can land a couple of seconds later
+      let stats = await archon.stats();
+      // The two intents may have gone out in one batch or two; wait until every batch is confirmed
+      const pending = (s: typeof stats) =>
+        s.settlement.batchesSubmitted === 0 || s.settlement.batchesSettled < s.settlement.batchesSubmitted;
+      for (const until = Date.now() + 15_000; pending(stats) && Date.now() < until;) {
+        await new Promise((r) => setTimeout(r, 250));
+        stats = await archon.stats();
+      }
+      expect(stats.solver).toEqual({ address: solverWallet.address, chainId: 8453 });
+      expect(stats.intents).toMatchObject({ received: 2, settled: 2, refunded: 0, expired: 0, failed: 0 });
+      // Both intents sold USDC: nothing to match against, so everything went through the pool
+      expect(stats.intents).toMatchObject({ matched: 0, routedThroughPool: 2 });
+      expect(stats.volume.byPair['USDC/DAI']).toEqual({
+        quoteToken: 'USDC',
+        settled: parseAmount('0.3', 'USDC'),
+        matched: '0',
+        routedThroughPool: parseAmount('0.3', 'USDC'),
+        matchRate: 0,
+      });
+      expect(stats.mempool).toMatchObject({ pending: 0, inFlight: 0 });
+      expect(stats.settlement.batchesSettled).toBeGreaterThanOrEqual(1);
+      expect(stats.settlement.batchesSubmitted).toBe(stats.settlement.batchesSettled);
+      expect(BigInt(stats.settlement.gasSpentWei)).toBeGreaterThan(0n);
+      expect(stats.settlement.averageSettlementMs).toBeGreaterThan(0);
+    });
+
     it('surfaces solver validation errors', async () => {
       await expect(
         session.swap({ tokenIn: 'USDC', tokenOut: 'DAI', amountIn: parseAmount('1000', 'USDC'), minAmountOut: '1' }),
